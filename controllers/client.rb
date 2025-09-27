@@ -17,7 +17,7 @@ module Gemini
 
       DEFAULT_SERVICE_VERSION = 'v1'
 
-      def initialize(config)
+      def initialize(config, &faraday_config)
         @service = config[:credentials][:service]
 
         unless %w[vertex-ai-api generative-language-api].include?(@service)
@@ -77,6 +77,7 @@ module Gemini
         @request_options = config.dig(:options, :connection, :request)
 
         @faraday_adapter = config.dig(:options, :connection, :adapter) || DEFAULT_FARADAY_ADAPTER
+        @faraday_config = faraday_config
 
         @request_options = if @request_options.is_a?(Hash)
                              @request_options.slice(*ALLOWED_REQUEST_OPTIONS)
@@ -183,6 +184,7 @@ module Gemini
         response = Faraday.new(request: @request_options) do |faraday|
           faraday.adapter @faraday_adapter
           faraday.response :raise_error
+          @faraday_config&.call(faraday)
         end.send(method_to_call) do |request|
           request.url url
           request.headers['Content-Type'] = 'application/json'

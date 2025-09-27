@@ -45,4 +45,37 @@ RSpec.describe Gemini do
       "You must choose either 'file_contents', or 'file_path'."
     )
   end
+
+  context 'when a Faraday configuration block is provided' do
+    let(:stubs) { Faraday::Adapter::Test::Stubs.new }
+    let(:model) { 'this-is-for-testing' }
+
+    it 'calls the Faraday configuration block' do
+      stubs.post("https://generativelanguage.googleapis.com/v1/models/#{model}:generateContent") do |env|
+        expect(env.request_headers['X-Custom-Header']).to eq('TestValue')
+        [
+          200,
+          { 'Content-Type': 'application/json' },
+          '{}'
+        ]
+      end
+
+      client = described_class.new(
+        credentials: {
+          service: 'generative-language-api',
+          api_key: 'key'
+        },
+        options: {
+          model: model
+        }
+      ) do |faraday|
+        faraday.adapter :test, stubs
+        faraday.headers['X-Custom-Header'] = 'TestValue'
+      end
+
+      client.generate_content({ contents: { role: 'user', parts: { text: 'hi!' } } })
+
+      stubs.verify_stubbed_calls
+    end
+  end
 end

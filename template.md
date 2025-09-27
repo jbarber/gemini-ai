@@ -1290,6 +1290,23 @@ client = Gemini.new(
 )
 ```
 
+#### Faraday Configuration
+
+You can also pass a block to `Gemini.new` to configure Faraday, for example, to add a logger to inspect the requests:
+
+```ruby
+require 'logger'
+
+client = Gemini.new(
+  credentials: { service: 'vertex-ai-api', region: 'us-east4' },
+  options: {
+    model: 'gemini-pro'
+  }
+) do |faraday|
+  faraday.response :logger, Logger.new(STDOUT), bodies: true
+end
+```
+
 #### Timeout
 
 You can set the maximum number of seconds to wait for the request to complete with the `timeout` option:
