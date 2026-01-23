@@ -123,10 +123,10 @@ module Gemini
         result
       end
 
-      def embed_content(payload, server_sent_events: nil, &callback)
+      def embed_content(payload, labels: nil, server_sent_events: nil, &callback)
         result = request(
           "#{@model_address}:embedContent", payload,
-          server_sent_events:, &callback
+          labels:, server_sent_events:, &callback
         )
 
         return result.first if result.is_a?(Array) && result.size == 1
@@ -134,10 +134,10 @@ module Gemini
         result
       end
 
-      def batch_embed_content(payload, server_sent_events: nil, &callback)
+      def batch_embed_content(payload, labels: nil, server_sent_events: nil, &callback)
         result = request(
           "#{@model_address}:batchEmbedContents", payload,
-          server_sent_events:, &callback
+          labels:, server_sent_events:, &callback
         )
 
         return result.first if result.is_a?(Array) && result.size == 1
@@ -145,8 +145,8 @@ module Gemini
         result
       end
 
-      def stream_generate_content(payload, server_sent_events: nil, &callback)
-        request("#{@model_address}:streamGenerateContent", payload, server_sent_events:, &callback)
+      def stream_generate_content(payload, labels: nil, server_sent_events: nil, &callback)
+        request("#{@model_address}:streamGenerateContent", payload, labels:, server_sent_events:, &callback)
       end
 
       def models(_server_sent_events: nil, &callback)
@@ -160,10 +160,10 @@ module Gemini
         result
       end
 
-      def generate_content(payload, server_sent_events: nil, &callback)
+      def generate_content(payload, labels: nil, server_sent_events: nil, &callback)
         result = request(
           "#{@model_address}:generateContent", payload,
-          server_sent_events:, &callback
+          labels:, server_sent_events:, &callback
         )
 
         return result.first if result.is_a?(Array) && result.size == 1
@@ -171,7 +171,7 @@ module Gemini
         result
       end
 
-      def request(path, payload, server_sent_events: nil, request_method: 'POST', &callback)
+      def request(path, payload, labels: nil, server_sent_events: nil, request_method: 'POST', &callback)
         server_sent_events_enabled = server_sent_events.nil? ? @server_sent_events : server_sent_events
 
         url = "#{@base_address}/#{path}"
@@ -182,6 +182,12 @@ module Gemini
         params << "key=#{@api_key}" if @authentication == :api_key
 
         url += "?#{params.join('&')}" if params.size.positive?
+
+        # Add labels to request body for Vertex AI billing breakdown
+        # Labels are only supported by Vertex AI, not generative-language-api
+        if labels.is_a?(Hash) && @service == 'vertex-ai-api' && payload.is_a?(Hash)
+          payload = payload.merge(labels: labels.transform_keys(&:to_s))
+        end
 
         if !callback.nil? && !server_sent_events_enabled
           raise Errors::BlockWithoutServerSentEventsError,
