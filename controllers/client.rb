@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'cgi'
 require 'event_stream_parser'
 require 'faraday'
 require 'faraday/typhoeus'
@@ -123,10 +124,10 @@ module Gemini
         result
       end
 
-      def embed_content(payload, server_sent_events: nil, &callback)
+      def embed_content(payload, labels: nil, server_sent_events: nil, &callback)
         result = request(
           "#{@model_address}:embedContent", payload,
-          server_sent_events:, &callback
+          labels:, server_sent_events:, &callback
         )
 
         return result.first if result.is_a?(Array) && result.size == 1
@@ -134,10 +135,10 @@ module Gemini
         result
       end
 
-      def batch_embed_content(payload, server_sent_events: nil, &callback)
+      def batch_embed_content(payload, labels: nil, server_sent_events: nil, &callback)
         result = request(
           "#{@model_address}:batchEmbedContents", payload,
-          server_sent_events:, &callback
+          labels:, server_sent_events:, &callback
         )
 
         return result.first if result.is_a?(Array) && result.size == 1
@@ -145,8 +146,8 @@ module Gemini
         result
       end
 
-      def stream_generate_content(payload, server_sent_events: nil, &callback)
-        request("#{@model_address}:streamGenerateContent", payload, server_sent_events:, &callback)
+      def stream_generate_content(payload, labels: nil, server_sent_events: nil, &callback)
+        request("#{@model_address}:streamGenerateContent", payload, labels:, server_sent_events:, &callback)
       end
 
       def models(_server_sent_events: nil, &callback)
@@ -160,10 +161,10 @@ module Gemini
         result
       end
 
-      def generate_content(payload, server_sent_events: nil, &callback)
+      def generate_content(payload, labels: nil, server_sent_events: nil, &callback)
         result = request(
           "#{@model_address}:generateContent", payload,
-          server_sent_events:, &callback
+          labels:, server_sent_events:, &callback
         )
 
         return result.first if result.is_a?(Array) && result.size == 1
@@ -171,7 +172,7 @@ module Gemini
         result
       end
 
-      def request(path, payload, server_sent_events: nil, request_method: 'POST', &callback)
+      def request(path, payload, labels: nil, server_sent_events: nil, request_method: 'POST', &callback)
         server_sent_events_enabled = server_sent_events.nil? ? @server_sent_events : server_sent_events
 
         url = "#{@base_address}/#{path}"
@@ -180,6 +181,14 @@ module Gemini
 
         params << 'alt=sse' if server_sent_events_enabled
         params << "key=#{@api_key}" if @authentication == :api_key
+
+        # Add labels as query parameters for Vertex AI
+        # Labels are only supported by Vertex AI, not generative-language-api
+        if labels.is_a?(Hash) && @service == 'vertex-ai-api'
+          labels.each do |key, value|
+            params << "labels.#{key}=#{CGI.escape(value.to_s)}" if value
+          end
+        end
 
         url += "?#{params.join('&')}" if params.size.positive?
 
